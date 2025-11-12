@@ -4,6 +4,11 @@
 #include "leos/cyphal/node.h"
 #include "module_setup.h"
 #include "pico/stdlib.h"
+#include "leos/purpleboard.h"
+#include <stdio.h>
+
+#define SDA 16
+#define SCL 17
 
 void main() {
     // --- INITIALIZE MODULE ---
@@ -16,7 +21,15 @@ void main() {
     }
 
     // Your setup code goes here
+    leos_purpleboard_t *pb = NULL;
+    leos_purpleboard_readings_t pb_readings = {0};
+    
+    leos_purpleboard_result_t pb_init_res = leos_purpleboard_init(i2c0, SDA, SCL, &pb);
 
+    if (pb_init_res > 0) {
+        LOG_ERROR("A critical sensor error has occured upon initialization: error code %d.", pb_init_res);
+        // return;
+    }
 
     // After finishing initialization, set our mode to operational
     node.mode.value = uavcan_node_Mode_1_0_OPERATIONAL;
@@ -30,5 +43,24 @@ void main() {
         leos_cyphal_task(&node);
 
         // Your looping code goes here
+        leos_purpleboard_result_t pb_sensor_res = leos_purpleboard_read(pb, &pb_readings);
+
+        if (pb_sensor_res > 0) {
+            LOG_ERROR("A sensor error has occured upon reading data: error code %d.", pb_init_res);
+        }
+
+        printf("---- PurpleBoard Sensor Readings ----\n");
+        printf("Temperature      : %.2f °C\n", pb_readings.temperature_c);
+        printf("Pressure         : %.2f mbar\n", pb_readings.pressure_mb);
+        printf("UV Index         : %u\n", pb_readings.uvs);
+        printf("PM1.0 (env)      : %u µg/m³\n", pb_readings.pm10_env);
+        printf("PM2.5 (env)      : %u µg/m³\n", pb_readings.pm25_env);
+        printf("PM10  (env)      : %u µg/m³\n", pb_readings.pm100_env);
+        printf("AQI (PM2.5, US)  : %u\n", pb_readings.aqi_pm25_us);
+        printf("AQI (PM10, US)   : %u\n", pb_readings.aqi_pm100_us);
+        printf("Light Intensity  : %.2f lux\n", pb_readings.light_lux);
+        printf("------------------------------------\n");
+
+        sleep_ms(1000);
     }
 }
